@@ -18,7 +18,7 @@ import { checkbox, confirm, input } from "@inquirer/prompts";
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const VERSION = "1.0.0";
-const DEFAULT_DOWNLOAD_DIR = path.join(os.homedir(), "Downloads");
+const DEFAULT_DOWNLOAD_DIR = path.join(os.homedir(), "Downloads", "Fitgirl Repacks");
 const HOST_PREFIX = "https://fuckingfast.co";
 
 export type LinkItem = {
@@ -221,7 +221,7 @@ async function downloadGame(
   }
 
   if (outputDir == DEFAULT_DOWNLOAD_DIR) {
-    const dirname = selectedLinks[0].text.split("_–_")[0];
+    const dirname = selectedLinks[0].text.split("_–_")[0].replaceAll("_", " ");
     outputDir = path.join(DEFAULT_DOWNLOAD_DIR, dirname);
   }
 
