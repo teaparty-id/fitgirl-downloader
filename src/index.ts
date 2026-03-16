@@ -46,15 +46,11 @@ function printBanner(): void {
     chalk.cyan(`
   ╔═══════════════════════════════════════════════════════════════╗
   ║                                                               ║
-  ║   ${chalk.bold.white(
-    "🎮 FitGirl Repack Downloader"
-  )}                                ║
-  ║   ${chalk.gray(
-    `v${VERSION}`
-  )}                                                      ║
+  ║   ${chalk.bold.white("🎮 FitGirl Repack Downloader")}                                ║
+  ║   ${chalk.gray(`v${VERSION}`)}                                                      ║
   ║                                                               ║
   ╚═══════════════════════════════════════════════════════════════╝
-  `)
+  `),
   );
 }
 
@@ -78,20 +74,14 @@ function printWarning(message: string): void {
 // CORE FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export async function getDownloadLinks(
-  url: string,
-  hrefPrefix: string
-): Promise<LinkItem[]> {
+export async function getDownloadLinks(url: string, hrefPrefix: string): Promise<LinkItem[]> {
   const { data } = await axios.get(url, {
     headers: { "User-Agent": "Mozilla/5.0" },
   });
 
   const dom = parseDocument(data);
 
-  const anchors = findAll(
-    (node): node is Element => node.type === "tag" && node.name === "a",
-    dom.children
-  );
+  const anchors = findAll((node): node is Element => node.type === "tag" && node.name === "a", dom.children);
 
   const items = anchors
     .filter((x) => x.attribs?.href && x?.attribs?.href?.startsWith(hrefPrefix))
@@ -124,22 +114,20 @@ async function downloadWithProgressBar(
   outputDir: string,
   filename: string,
   index: number,
-  total: number
+  total: number,
 ): Promise<void> {
   const multibar = new cliProgress.MultiBar(
     {
       clearOnComplete: false,
       hideCursor: true,
       format: `  ${chalk.cyan("{bar}")} │ ${chalk.yellow(
-        "{percentage}%"
-      )} │ ${chalk.green("{downloaded}")} / ${chalk.blue(
-        "{fileSize}"
-      )} │ ${chalk.magenta("{speed}")}`,
+        "{percentage}%",
+      )} │ ${chalk.green("{downloaded}")} / ${chalk.blue("{fileSize}")} │ ${chalk.magenta("{speed}")}`,
       barCompleteChar: "█",
       barIncompleteChar: "░",
       barsize: 30,
     },
-    cliProgress.Presets.shades_classic
+    cliProgress.Presets.shades_classic,
   );
 
   const bar = multibar.create(100, 0, {
@@ -176,7 +164,7 @@ async function downloadGame(
   url: string,
   outputDir: string,
   skipPrompt: boolean,
-  bannerAlreadyShown: boolean = false
+  bannerAlreadyShown: boolean = false,
 ): Promise<void> {
   if (!bannerAlreadyShown) {
     printBanner();
@@ -232,6 +220,11 @@ async function downloadGame(
     }
   }
 
+  if (outputDir == DEFAULT_DOWNLOAD_DIR) {
+    const dirname = selectedLinks[0].text.split("_–_")[0];
+    outputDir = path.join(DEFAULT_DOWNLOAD_DIR, dirname);
+  }
+
   console.log();
   printInfo(`Download directory: ${chalk.underline(outputDir)}`);
   console.log();
@@ -278,13 +271,7 @@ async function downloadGame(
 
       linkSpinner.succeed();
 
-      await downloadWithProgressBar(
-        nLink,
-        outputDir,
-        fileLabel,
-        i + 1,
-        selectedLinks.length
-      );
+      await downloadWithProgressBar(nLink, outputDir, fileLabel, i + 1, selectedLinks.length);
       successCount++;
     } catch (error) {
       linkSpinner.fail();
@@ -296,24 +283,12 @@ async function downloadGame(
   }
 
   // Summary
-  console.log(
-    chalk.bold.cyan(
-      "\n  ════════════════════════════════════════════════════\n"
-    )
-  );
+  console.log(chalk.bold.cyan("\n  ════════════════════════════════════════════════════\n"));
   console.log(chalk.bold("  📊 Download Summary:"));
-  console.log(
-    `     ${chalk.green("✔")} Successful: ${chalk.bold.green(successCount)}`
-  );
+  console.log(`     ${chalk.green("✔")} Successful: ${chalk.bold.green(successCount)}`);
   console.log(`     ${chalk.red("✖")} Failed: ${chalk.bold.red(failCount)}`);
-  console.log(
-    `     ${chalk.blue("📁")} Location: ${chalk.underline(outputDir)}`
-  );
-  console.log(
-    chalk.bold.cyan(
-      "\n  ════════════════════════════════════════════════════\n"
-    )
-  );
+  console.log(`     ${chalk.blue("📁")} Location: ${chalk.underline(outputDir)}`);
+  console.log(chalk.bold.cyan("\n  ════════════════════════════════════════════════════\n"));
 
   if (failCount > 0) {
     process.exit(1);
@@ -328,63 +303,41 @@ const program = new Command();
 
 program
   .name("fitgirl-dl")
-  .description(
-    chalk.cyan("🎮 A beautiful CLI tool to download FitGirl Repacks")
-  )
+  .description(chalk.cyan("🎮 A beautiful CLI tool to download FitGirl Repacks"))
   .version(VERSION, "-v, --version", "Display version number")
-  .argument(
-    "[url]",
-    "URL of the FitGirl repack page (will prompt if not provided)"
-  )
-  .option(
-    "-o, --output <dir>",
-    "Output directory for downloads",
-    DEFAULT_DOWNLOAD_DIR
-  )
-  .option(
-    "-y, --yes",
-    "Skip confirmation prompts and download all files",
-    false
-  )
-  .action(
-    async (
-      url: string | undefined,
-      options: { output: string; yes: boolean }
-    ) => {
-      try {
-        let targetUrl = url;
+  .argument("[url]", "URL of the FitGirl repack page (will prompt if not provided)")
+  .option("-o, --output <dir>", "Output directory for downloads", DEFAULT_DOWNLOAD_DIR)
+  .option("-y, --yes", "Skip confirmation prompts and download all files", false)
+  .action(async (url: string | undefined, options: { output: string; yes: boolean }) => {
+    try {
+      let targetUrl = url;
 
-        // If no URL provided, prompt for it
-        if (!targetUrl) {
-          printBanner();
-          targetUrl = await input({
-            message: chalk.bold("Enter FitGirl repack page URL:"),
-            validate: (value) => {
-              if (!value.trim()) {
-                return "URL is required";
-              }
-              try {
-                new URL(value);
-                return true;
-              } catch {
-                return "Please enter a valid URL";
-              }
-            },
-          });
-          console.log();
-          await downloadGame(targetUrl, options.output, options.yes, true);
-        } else {
-          await downloadGame(targetUrl, options.output, options.yes);
-        }
-      } catch (error) {
-        printError(
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred"
-        );
-        process.exit(1);
+      // If no URL provided, prompt for it
+      if (!targetUrl) {
+        printBanner();
+        targetUrl = await input({
+          message: chalk.bold("Enter FitGirl repack page URL:"),
+          validate: (value) => {
+            if (!value.trim()) {
+              return "URL is required";
+            }
+            try {
+              new URL(value);
+              return true;
+            } catch {
+              return "Please enter a valid URL";
+            }
+          },
+        });
+        console.log();
+        await downloadGame(targetUrl, options.output, options.yes, true);
+      } else {
+        await downloadGame(targetUrl, options.output, options.yes);
       }
+    } catch (error) {
+      printError(error instanceof Error ? error.message : "An unexpected error occurred");
+      process.exit(1);
     }
-  );
+  });
 
 program.parse();
