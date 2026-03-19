@@ -5,29 +5,30 @@ name: Release
 
 on:
   workflow_dispatch:
-  
-jobs:
+  push:
 
+jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Repo
-      uses: actions/checkout@v4
+      - name: Checkout Repo
+        uses: actions/checkout@v4
 
-    - name: Set up Bun
-      uses: oven-sh/setup-bun@v2
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
 
-    - name: Install dependencies
-      run: bun install
+      - name: Install dependencies
+        run: bun install
 
-    - name: Build
-      run: bun run build
+      - name: Build
+        run: bun run build
 
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GIT_TOKEN }}
-        file: ./bin/fgdl-*
-        file_glob: true
-        tag: ${{ github.ref }}
-        overwrite: true
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GIT_TOKEN }}
+          file: ./bin/fgdl-*
+          file_glob: true
+          tag: ${{ github.ref }}
+          body: ${{ github.event.head_commit.message }}
+          overwrite: true

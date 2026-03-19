@@ -122,7 +122,7 @@ async function downloadWithProgressBar(
       hideCursor: true,
       format: `  ${chalk.cyan("{bar}")} │ ${chalk.yellow(
         "{percentage}%",
-      )} │ ${chalk.green("{downloaded}")} / ${chalk.blue("{fileSize}")} │ ${chalk.magenta("{speed}")}`,
+      )} │ ${chalk.green("{downloaded}")} / ${chalk.blue("{fileSize}")} │ ${chalk.magenta("{speed}")} | ${chalk.yellow("{eta}s")}/${chalk.blue("{duration}s")}`,
       barCompleteChar: "█",
       barIncompleteChar: "░",
       barsize: 30,
