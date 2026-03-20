@@ -23,6 +23,8 @@ const PKG_JSON = (await PackageJson.load("./")).content;
 const RSS_FEED = "http://fitgirl-repacks.site/feed/";
 const VERSION = PKG_JSON.version!;
 const DEFAULT_DOWNLOAD_DIR = path.join(os.homedir(), "Downloads", "Fitgirl Repacks");
+const CONFIG_FILE = Bun.file(path.join(DEFAULT_DOWNLOAD_DIR, "config.json"));
+const HOME_PREFIX = "https://fitgirl-repacks.site/";
 const HOST_PREFIX = "https://fuckingfast.co";
 
 export type LinkItem = {
@@ -30,14 +32,51 @@ export type LinkItem = {
   text: string;
 };
 
-type CustomFeed = { foo: string };
-type CustomItem = { bar: number };
+type Config = {
+  item: {
+    link: string;
+    files: LinkItem[];
+    selected: LinkItem[];
+  }[];
+};
 
+const dummyConfig: Config = {
+  item: [],
+};
 const parser: Parser = new Parser();
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // UTILITIES
 // ═══════════════════════════════════════════════════════════════════════════════
+
+async function readConfig(url?: string) {
+  try {
+    const config: Config = JSON.parse(await CONFIG_FILE.text());
+
+    if (url != undefined) {
+      return config.item.filter((item) => item.link == url)[0];
+    }
+
+    return config;
+  } catch (e) {
+    return dummyConfig;
+  }
+}
+
+async function writeConfig(itemConfig: Config["item"][0]) {
+  let config = (await readConfig()) as Config;
+
+  const links = config.item.map((item) => item.link);
+  const itemIndex = links.indexOf(itemConfig.link);
+
+  if (itemIndex >= 0) {
+    config.item[itemIndex] = itemConfig;
+  } else {
+    config.item.push(itemConfig);
+  }
+
+  await CONFIG_FILE.write(JSON.stringify(config));
+}
 
 function formatBytes(bytes: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -179,54 +218,74 @@ async function downloadGame(
     printBanner();
   }
 
-  printInfo(`Fetching download links from: ${chalk.underline(url)}`);
-  console.log();
-
-  const spinner = ora({
-    text: "Scanning page for download links...",
-    color: "cyan",
-  }).start();
-
   let dLinks: LinkItem[];
-  try {
-    dLinks = await getDownloadLinks(url, HOST_PREFIX);
-    spinner.succeed(`Found ${chalk.bold(dLinks.length)} download link(s)`);
-  } catch (error) {
-    spinner.fail("Failed to fetch download links");
-    printError(error instanceof Error ? error.message : "Unknown error");
-    process.exit(1);
-  }
-
-  if (dLinks.length === 0) {
-    printWarning("No download links found on this page.");
-    process.exit(0);
-  }
-
-  console.log();
-
-  // Let user select which files to download
   let selectedLinks: LinkItem[];
 
-  if (skipPrompt) {
-    selectedLinks = dLinks;
-    printInfo(`Downloading all ${selectedLinks.length} file(s)`);
-  } else {
-    const choices = dLinks.map((link, i) => ({
-      name: `${link.text || `File ${i + 1}`}`,
-      value: link,
-      checked: true,
-    }));
-
-    selectedLinks = await checkbox({
-      message: chalk.bold("Select files to download:"),
-      choices,
-      pageSize: 15,
+  const prevConfig = (await readConfig(url)) as Config["item"][0];
+  let usePrevConfig = false;
+  if (prevConfig) {
+    console.log("Previous selected item(s):");
+    for (const prevItem of prevConfig.selected) {
+      console.log(`${chalk.blue(prevItem.text)}`);
+    }
+    console.log("");
+    usePrevConfig = await confirm({
+      message: `Use previous download config (${prevConfig.selected.length} selected file(s))?`,
+      default: true,
     });
+  }
 
-    if (selectedLinks.length === 0) {
-      printWarning("No files selected. Exiting.");
+  if (!usePrevConfig) {
+    printInfo(`Fetching download links from: ${chalk.underline(url)}`);
+    console.log();
+
+    const spinner = ora({
+      text: "Scanning page for download links...",
+      color: "cyan",
+    }).start();
+
+    try {
+      dLinks = await getDownloadLinks(url, HOST_PREFIX);
+      spinner.succeed(`Found ${chalk.bold(dLinks.length)} download link(s)`);
+    } catch (error) {
+      spinner.fail("Failed to fetch download links");
+      printError(error instanceof Error ? error.message : "Unknown error");
+      process.exit(1);
+    }
+
+    if (dLinks.length === 0) {
+      printWarning("No download links found on this page.");
       process.exit(0);
     }
+
+    console.log();
+
+    // Let user select which files to download
+
+    if (skipPrompt) {
+      selectedLinks = dLinks;
+      printInfo(`Downloading all ${selectedLinks.length} file(s)`);
+    } else {
+      const choices = dLinks.map((link, i) => ({
+        name: `${link.text || `File ${i + 1}`}`,
+        value: link,
+        checked: true,
+      }));
+
+      selectedLinks = await checkbox({
+        message: chalk.bold("Select files to download:"),
+        choices,
+        pageSize: 15,
+      });
+
+      if (selectedLinks.length === 0) {
+        printWarning("No files selected. Exiting.");
+        process.exit(0);
+      }
+    }
+  } else {
+    dLinks = prevConfig.files;
+    selectedLinks = prevConfig.selected;
   }
 
   if (outputDir == DEFAULT_DOWNLOAD_DIR) {
@@ -253,6 +312,11 @@ async function downloadGame(
 
   console.log();
   console.log(chalk.bold.cyan("  📥 Starting downloads...\n"));
+  await writeConfig({
+    link: url,
+    files: dLinks,
+    selected: selectedLinks,
+  });
 
   let successCount = 0;
   let failCount = 0;
@@ -321,24 +385,42 @@ program
     try {
       let targetUrl = url;
 
-      // TODO
-      // Display selection
-      // const feed = await parser.parseURL(RSS_FEED);
-      // for (const itemFeed of feed.items) {
-      //   console.log(itemFeed.title); // feed will have a `foo` property, type as a string
-      // }
+      if (!(await CONFIG_FILE.exists())) {
+        await CONFIG_FILE.write(JSON.stringify(dummyConfig));
+      }
 
       // If no URL provided, prompt for it
       if (!targetUrl) {
         printBanner();
-        targetUrl = await input({
-          message: chalk.bold("Enter FitGirl repack page URL:"),
+        let feed = await parser.parseURL(RSS_FEED);
+        console.log("Latest Fitgirl Repacks...");
+        for (const i in feed.items) {
+          const itemFeed = feed.items[i];
+          if (itemFeed.categories?.[0] != "Uncategorized") {
+            console.log(`${chalk.blue("[" + i + "]")} ${itemFeed.title}`);
+          }
+        }
+        console.log("");
+        await input({
+          message: chalk.bold("Enter FitGirl repack page URL or number above:"),
           validate: (value) => {
             if (!value.trim()) {
               return "URL is required";
             }
             try {
-              new URL(value);
+              if (value.startsWith(HOME_PREFIX)) {
+                new URL(value);
+                targetUrl = value;
+              } else {
+                const selIndex = parseInt(value);
+
+                if (isNaN(selIndex) || selIndex > feed.items.length - 1) {
+                  return "Select a valid number";
+                }
+
+                targetUrl = feed.items[selIndex].link!;
+              }
+
               return true;
             } catch {
               return "Please enter a valid URL";
@@ -346,7 +428,7 @@ program
           },
         });
         console.log();
-        await downloadGame(targetUrl, options.output, options.yes, true);
+        await downloadGame(targetUrl!, options.output, options.yes, true);
       } else {
         await downloadGame(targetUrl, options.output, options.yes);
       }
