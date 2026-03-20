@@ -12,16 +12,14 @@ import chalk from "chalk";
 import ora from "ora";
 import cliProgress from "cli-progress";
 import { checkbox, confirm, input } from "@inquirer/prompts";
-import PackageJson from "@npmcli/package-json";
 import Parser from "rss-parser";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const PKG_JSON = (await PackageJson.load("./")).content;
 const RSS_FEED = "http://fitgirl-repacks.site/feed/";
-const VERSION = PKG_JSON.version!;
+const VERSION = "1.1.1";
 const DEFAULT_DOWNLOAD_DIR = path.join(os.homedir(), "Downloads", "Fitgirl Repacks");
 const CONFIG_FILE = Bun.file(path.join(DEFAULT_DOWNLOAD_DIR, "config.json"));
 const HOME_PREFIX = "https://fitgirl-repacks.site/";
