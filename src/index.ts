@@ -12,12 +12,16 @@ import chalk from "chalk";
 import ora from "ora";
 import cliProgress from "cli-progress";
 import { checkbox, confirm, input } from "@inquirer/prompts";
+import PackageJson from "@npmcli/package-json";
+import Parser from "rss-parser";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const VERSION = "1.0.0";
+const PKG_JSON = (await PackageJson.load("./")).content;
+const RSS_FEED = "http://fitgirl-repacks.site/feed/";
+const VERSION = PKG_JSON.version!;
 const DEFAULT_DOWNLOAD_DIR = path.join(os.homedir(), "Downloads", "Fitgirl Repacks");
 const HOST_PREFIX = "https://fuckingfast.co";
 
@@ -25,6 +29,11 @@ export type LinkItem = {
   href: string;
   text: string;
 };
+
+type CustomFeed = { foo: string };
+type CustomItem = { bar: number };
+
+const parser: Parser = new Parser();
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // UTILITIES
@@ -311,6 +320,13 @@ program
   .action(async (url: string | undefined, options: { output: string; yes: boolean }) => {
     try {
       let targetUrl = url;
+
+      // TODO
+      // Display selection
+      // const feed = await parser.parseURL(RSS_FEED);
+      // for (const itemFeed of feed.items) {
+      //   console.log(itemFeed.title); // feed will have a `foo` property, type as a string
+      // }
 
       // If no URL provided, prompt for it
       if (!targetUrl) {
