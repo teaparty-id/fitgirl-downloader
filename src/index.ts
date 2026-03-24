@@ -405,7 +405,7 @@ program
         if (config?.item.length > 0) {
           console.log("Previous downloaded repacks:");
           for (const i in config.item) {
-            console.log(`${chalk.blue("[" + (feed.items.length + parseInt(i)) + "]")} ${config.item[i].link}`);
+            console.log(`${chalk.blue("[" + feed.items.length + "]")} ${config.item[i].link}`);
             feed.items.push({
               link: config.item[i].link,
             });
