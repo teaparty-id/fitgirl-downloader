@@ -19,7 +19,7 @@ import Parser from "rss-parser";
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const RSS_FEED = "http://fitgirl-repacks.site/feed/";
-const VERSION = "1.1.1";
+const VERSION = "1.1.2";
 const DEFAULT_DOWNLOAD_DIR = path.join(os.homedir(), "Downloads", "Fitgirl Repacks");
 const CONFIG_FILE = Bun.file(path.join(DEFAULT_DOWNLOAD_DIR, "config.json"));
 const HOME_PREFIX = "https://fitgirl-repacks.site/";
@@ -391,14 +391,29 @@ program
       if (!targetUrl) {
         printBanner();
         let feed = await parser.parseURL(RSS_FEED);
-        console.log("Latest Fitgirl Repacks...");
+        console.log("Latest Fitgirl Repacks:");
         for (const i in feed.items) {
           const itemFeed = feed.items[i];
           if (itemFeed.categories?.[0] != "Uncategorized") {
             console.log(`${chalk.blue("[" + i + "]")} ${itemFeed.title}`);
           }
         }
+
         console.log("");
+
+        const config = (await readConfig()) as Config;
+        if (config?.item.length > 0) {
+          console.log("Previous downloaded repacks:");
+          for (const i in config.item) {
+            console.log(`${chalk.blue("[" + (feed.items.length + parseInt(i)) + "]")} ${config.item[i].link}`);
+            feed.items.push({
+              link: config.item[i].link,
+            });
+          }
+        }
+
+        console.log("");
+
         await input({
           message: chalk.bold("Enter FitGirl repack page URL or number above:"),
           validate: (value) => {
