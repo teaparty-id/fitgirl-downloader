@@ -19,7 +19,7 @@ import Parser from "rss-parser";
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const RSS_FEED = "http://fitgirl-repacks.site/feed/";
-const VERSION = "1.1.2";
+const VERSION = "1.1.3";
 const DEFAULT_DOWNLOAD_DIR = path.join(os.homedir(), "Downloads", "Fitgirl Repacks");
 const CONFIG_FILE = Bun.file(path.join(DEFAULT_DOWNLOAD_DIR, "config.json"));
 const HOME_PREFIX = "https://fitgirl-repacks.site/";

@@ -82,7 +82,24 @@ export async function downloadFileWithProgress(
   let lastEmit = Date.now();
   let lastBytes = 0;
 
+  // Stuck detection: 10 seconds without progress
+  const STUCK_TIMEOUT_MS = 10000;
+  let stuckTimer: NodeJS.Timeout | undefined;
+
+  const resetStuckTimer = () => {
+    if (stuckTimer) clearTimeout(stuckTimer);
+    stuckTimer = setTimeout(() => {
+      res.data.destroy(new Error(`Download stuck: No progress for ${STUCK_TIMEOUT_MS / 1000}s`));
+    }, STUCK_TIMEOUT_MS);
+  };
+
+  // Start the initial stuck timer
+  resetStuckTimer();
+
   res.data.on("data", (chunk: Buffer) => {
+    // Reset timer on every data event
+    resetStuckTimer();
+
     downloadedBytes += chunk.length;
 
     const now = Date.now();
@@ -107,8 +124,19 @@ export async function downloadFileWithProgress(
     }
   });
 
-  // Download to temporary file
-  await pipeline(res.data, fs.createWriteStream(tempPath));
+  try {
+    // Download to temporary file
+    await pipeline(res.data, fs.createWriteStream(tempPath));
+  } catch (error) {
+    // Clean up temporary file on failure
+    if (fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
+    }
+    throw error;
+  } finally {
+    // Always clear the timer to avoid memory leaks or late triggers
+    if (stuckTimer) clearTimeout(stuckTimer);
+  }
 
   // Rename to final filename after successful download
   fs.renameSync(tempPath, outputPath);
